@@ -82,8 +82,8 @@ pub struct Node {
     #[serde(deserialize_with = "config::deserialize_secret_key_opt")]
     pub signing_secret_key: Option<SecretKey>,
     /// Network authentication secret key (in base58)
-    #[serde(deserialize_with = "config::deserialize_secret_key")]
-    pub communication_secret_key: SecretKey,
+    #[serde(deserialize_with = "config::deserialize_secret_key_opt")]
+    pub communication_secret_key: Option<SecretKey>,
     /// How many peers must precommit to a block before we'll sign it
     pub precommit_threshold: usize,
     /// Allow late-arriving peer messages to trigger re-attempt

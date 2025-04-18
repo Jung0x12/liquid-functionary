@@ -706,7 +706,7 @@ impl rotator::Rotator for BlockSigner {
             self.config.local.listen_addresses.clone(),
             self.peers.my_id(),
             2 * self.config.heartbeat(),
-            self.config.node.communication_secret_key,
+            self.config.node.communication_secret_key.unwrap(),
         );
         let tx_net = router.run(tx_main);
         self.peer_mgr.set_network_tx(tx_net.clone());

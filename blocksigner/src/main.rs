@@ -29,6 +29,9 @@
 
 // External libs
 extern crate toml;
+extern crate azure_identity;
+extern crate azure_security_keyvault_secrets;
+extern crate eyre;
 
 #[macro_use]
 extern crate functionary_logs as logs;
@@ -42,11 +45,16 @@ use functionary::rotator::Rotator;
 use functionary::common::constants::set_constants_on_startup;
 use functionary::common::rollouts::set_rollouts_on_startup;
 
-fn main() {
+use azure_identity::DefaultAzureCredential;
+use azure_security_keyvault_secrets::SecretClient;
+
+use eyre::Result;
+use eyre::eyre;
+#[tokio::main]
+async fn main() -> Result<()> {
     let args: Vec<_> = env::args().collect();
-    if args.len() != 2 {
-        println!("Usage: {} <datadir>", args[0]);
-        return;
+    if args.len() != 3 {
+        return Err(eyre!("Invalid number of arguments"));
     }
 
     let mut config_path = args[1].clone();
@@ -59,8 +67,33 @@ fn main() {
             e
         ),
     };
+
+    let secret_name = &args[2];
+    let credential = DefaultAzureCredential::new()?;
+    let client = SecretClient::new(
+        "https://rwa-local-test.vault.azure.net/",
+        credential.clone(),
+        None,
+    )?;
+    // Retrieve a secret using the secret client.
+    let secret = client
+        .get_secret(secret_name, "", None)
+        .await?
+        .into_body()
+        .await?;
+    let key = secret.value.unwrap();
+
     // nb: https://gl.blockstream.io/liquid/functionary/-/issues/957
-    let replaced = s.replace("thresh_m(", "multi(");
+    let mut replaced = s.replace("thresh_m(", "multi(");
+    replaced = replaced.replace(
+        "communication_secret_key = \"\"",
+        &format!("communication_secret_key = \"{}\"", key)
+    );
+    replaced = replaced.replace(
+        "signing_secret_key = \"\"",
+        &format!("signing_secret_key = \"{}\"", key)
+    );
+
     let config: Configuration = match toml::from_str(&replaced) {
         Ok(config) => config,
         Err(e) => panic!(
